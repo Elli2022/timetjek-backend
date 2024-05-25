@@ -3,50 +3,28 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\LoginRequest;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
-    public function create(): Response
+    public function apiLogin(Request $request)
     {
-        return Inertia::render('Auth/Login', [
-            'canResetPassword' => Route::has('password.request'),
-            'status' => session('status'),
+        $request->validate([
+            'personnummer' => 'required|string',
+            'password' => 'required|string',
         ]);
-    }
 
-    /**
-     * Handle an incoming authentication request.
-     */
-    public function store(LoginRequest $request): RedirectResponse
-    {
-        $request->authenticate();
+        if (!Auth::attempt(['personnummer' => $request->personnummer, 'password' => $request->password])) {
+            return response()->json(['message' => 'Invalid credentials'], 401);
+        }
 
-        $request->session()->regenerate();
+        $user = Auth::user();
+        $token = $user->createToken('authToken')->plainTextToken;
 
-        return redirect()->intended(route('dashboard', absolute: false));
-    }
-
-    /**
-     * Destroy an authenticated session.
-     */
-    public function destroy(Request $request): RedirectResponse
-    {
-        Auth::guard('web')->logout();
-
-        $request->session()->invalidate();
-
-        $request->session()->regenerateToken();
-
-        return redirect('/');
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+        ]);
     }
 }
